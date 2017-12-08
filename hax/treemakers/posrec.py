@@ -3,9 +3,11 @@ import numpy as np
 from hax.minitrees import TreeMaker
 from pax.PatternFitter import PatternFitter
 from pax.configuration import load_configuration
+from pax.InterpolatingMap import InterpolatingMap
 from pax import utils
 from pax import exceptions
 from scipy.stats import binom_test
+import json
 
 class PositionReconstruction(TreeMaker):
     """Stores position-reconstruction-related variables.
@@ -17,13 +19,16 @@ class PositionReconstruction(TreeMaker):
                          position and hits
 
     """
-    __version__ = '0.10'
+    __version__ = '0.12'
     extra_branches = ['peaks.area_per_channel[260]',
                       'peaks.hits_per_channel[260]',
                       'peaks.n_saturated_per_channel',
                       'interactions.x','interactions.y','interactions.z']
 
     def __init__(self):
+        
+        hax.minitrees.TreeMaker.__init__(self)
+        
         # We need to pull some stuff from the pax config
         self.pax_config = load_configuration("XENON1T")
         self.tpc_channels = list(range(0,   247+1))
@@ -48,12 +53,9 @@ class PositionReconstruction(TreeMaker):
         # also hardcoded in pax. Just kicking the can.
         #aftmap_filename = utils.data_file_name('s1_aft_xyz_XENON1T_06Mar2017.json')
         aftmap_filename = utils.data_file_name('s1_aft_xyz_XENON1T_20170808.json')
-        with open(aftmap_filename) as data_file:
-            data = json.load(data_file)
-        r_pts = np.array(data['r_pts'])
-        z_pts = np.array(data['z_pts'])
-        aft_vals = np.array(data['map']).reshape(len(r_pts), len(z_pts))
-        self.aft_map = RectBivariateSpline(r_pts, z_pts, aft_vals)
+        self.aft_map = InterpolatingMap(aftmap_filename)
+        self.low_pe_threshold=10
+        #hax.minitrees.Treemaker.__init__(self)
 
     def get_data(self, dataset, event_list=None):
 
@@ -87,11 +89,19 @@ class PositionReconstruction(TreeMaker):
         s1 = event.peaks[interaction.s1]
         
         # Want S1 AreaFractionTop Probability
+        if s1.area < self.low_pe_threshold:
+            s1_frac = s1.area/self.low_pe_threshold
+            hits_top = s1.n_hits*s1.hits_fraction_top
+            s1_top = s1.area*s1.area_fraction_top
+            size_top = hits_top*(1.-s1_frac) + s1_top*s1_frac
+            size_tot = s1.n_hits*(1.-s1_frac) + s1.area*s1_frac
+        else:
+            size_top = s1.area*s1.area_fraction_top
+            size_tot = s1.area
+
+        aft = self.aft_map.get_value(self.x[i], self.y[i], self.z[i])
         event_data['s1_area_fraction_top_probability_hax'] = binom_test(
-            np.round(s1.area_fraction_top * s1.area),
-            np.round(s1.area),
-            self.aft_map(np.sqrt(self.x[i]**2 + self.y[i]**2),
-                        self.z[i])[0, 0])
+            size_top, size_tot, aft)
 
         # Now do s1_pattern_fit
         apc = np.array(list(s1.area_per_channel))
