@@ -8,6 +8,9 @@ from pax import utils
 from pax import exceptions
 from scipy.stats import binom_test
 import json
+from keras.models import model_from_json, Sequential
+from keras.layers import Dense, Dropout, Activation, Reshape, Flatten
+from keras import regularizers
 
 class PositionReconstruction(TreeMaker):
     """Stores position-reconstruction-related variables.
@@ -15,7 +18,7 @@ class PositionReconstruction(TreeMaker):
     Provides:
        - s1_pattern_fit: s1 pattern fit computed with corrected
                          position and areas
-       - s1_pattern_fit_hist: s1 pattern fit computed with corrected
+       - s1_pattern_fit_hits: s1 pattern fit computed with corrected
                          position and hits
 
     """
@@ -56,6 +59,18 @@ class PositionReconstruction(TreeMaker):
         self.aft_map = InterpolatingMap(aftmap_filename)
         self.low_pe_threshold=10
         #hax.minitrees.Treemaker.__init__(self)
+        # load trained NN models
+        nn_model_json = utils.data_file_name('tensorflow_nn_pos_XENON1T_20171211.json')
+        json_file_nn = open(nn_model_json, 'r')
+        loaded_model_json = json_file_nn.read()
+        json_file_nn.close()
+        loaded_nn_model = model_from_json(loaded_model_json)
+        weights_file = utils.data_file_name('tensorflow_nn_pos_weights_XENON1T_20171211.h5')
+        loaded_nn_model.load_weights(weights_file)
+        self.nn_tensorflow = loaded_nn_model
+        self.list_bad_pmts = [1, 2, 12, 26, 34, 62, 65, 79, 86, 88, 102, 118, 130, 134, 135, 139, 148, 150, 152, 162, 178,
+                         183, 190, 198, 206, 213, 214, 234, 239, 244]
+        self.ntop_pmts = 127 # How to get this automatically?
 
     def get_data(self, dataset, event_list=None):
 
@@ -87,7 +102,20 @@ class PositionReconstruction(TreeMaker):
             return event_data
         interaction = event.interactions[0]
         s1 = event.peaks[interaction.s1]
-        
+        s2 = event.peaks[interaction.s2]
+
+        # Position reconstruction based on NN from TensorFlow
+        s2apc = np.array(list(s2.area_per_channel))
+        s2apc_clean = []
+        for i, s2_t in enumerate(s2apc):
+            if i not in self.list_bad_pmts and i < self.ntop_pmts:
+                s2apc.clean.append(s2_t)
+        s2acp_clean.np.assaray(s2acp_clean)
+        s2acp_clean /= s2acp_clean.sum()
+        predicted_xy_tensorflow = self.nn_tensorflow.predict(s2acp_clean)
+        event_data['x_observed_tf'] = predicted_xy_tensorflow[0]
+        event_data['y_observed_tf'] = predicted_xy_tensorflow[1]
+
         # Want S1 AreaFractionTop Probability
         if s1.area < self.low_pe_threshold:
             s1_frac = s1.area/self.low_pe_threshold
