@@ -23,7 +23,7 @@ class PositionReconstruction(TreeMaker):
     __version__ = '0.12'
     extra_branches = ['peaks.area_per_channel[260]',
                       'peaks.hits_per_channel[260]',
-                      'peaks.n_saturated_per_channel',
+                      'peaks.n_saturated_per_channel[260]',
                       'interactions.x', 'interactions.y', 'interactions.z']
 
     def __init__(self):
