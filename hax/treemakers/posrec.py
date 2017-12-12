@@ -67,9 +67,9 @@ class PositionReconstruction(TreeMaker):
         loaded_nn_model = model_from_json(loaded_model_json)
         weights_file = utils.data_file_name('tensorflow_nn_pos_weights_XENON1T_20171211.h5')
         loaded_nn_model.load_weights(weights_file)
+        loaded_nn_model.compile(loss='mean_squared_error', optimizer='adam')
         self.nn_tensorflow = loaded_nn_model
-        self.list_bad_pmts = [1, 2, 12, 26, 34, 62, 65, 79, 86, 88, 102, 118, 130, 134, 135, 139, 148, 150, 152, 162, 178,
-                         183, 190, 198, 206, 213, 214, 234, 239, 244]
+        self.list_bad_pmts = [1, 2, 12, 26, 34, 62, 65, 79, 86, 88, 102, 118, 130, 134, 135, 139, 148, 150, 152, 162, 178, 183, 190, 198, 206, 213, 214, 234, 239, 244, 27, 73, 91, 137, 167, 203]
         self.ntop_pmts = 127 # How to get this automatically?
 
     def get_data(self, dataset, event_list=None):
@@ -110,11 +110,12 @@ class PositionReconstruction(TreeMaker):
         for i, s2_t in enumerate(s2apc):
             if i not in self.list_bad_pmts and i < self.ntop_pmts:
                 s2apc_clean.append(s2_t)
-        s2apc_clean = np.assaray(s2apc_clean)
-        s2apc_clean /= s2apc_clean.sum()
-        predicted_xy_tensorflow = self.nn_tensorflow.predict(s2apc_clean)
-        event_data['x_observed_tf'] = predicted_xy_tensorflow[0]
-        event_data['y_observed_tf'] = predicted_xy_tensorflow[1]
+        s2apc_clean = np.asarray(s2apc_clean)
+        s2apc_clean_norm = s2apc_clean/s2apc_clean.sum()
+        s2apc_clean_norm = s2apc_clean_norm.reshape(1, len(s2apc_clean_norm))
+        predicted_xy_tensorflow = self.nn_tensorflow.predict(s2apc_clean_norm)
+        event_data['x_observed_nn_tf'] = predicted_xy_tensorflow[0, 0] / 10.
+        event_data['y_observed_nn_tf'] = predicted_xy_tensorflow[0, 1] / 10.
 
         # Want S1 AreaFractionTop Probability
         if s1.area < self.low_pe_threshold:
