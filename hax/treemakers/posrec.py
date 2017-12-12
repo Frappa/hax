@@ -7,10 +7,7 @@ from pax.InterpolatingMap import InterpolatingMap
 from pax import utils
 from pax import exceptions
 from scipy.stats import binom_test
-import json
-from keras.models import model_from_json, Sequential
-from keras.layers import Dense, Dropout, Activation, Reshape, Flatten
-from keras import regularizers
+from keras.models import model_from_json
 
 
 class PositionReconstruction(TreeMaker):
