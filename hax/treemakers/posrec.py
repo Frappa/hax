@@ -109,10 +109,10 @@ class PositionReconstruction(TreeMaker):
         s2apc_clean = []
         for i, s2_t in enumerate(s2apc):
             if i not in self.list_bad_pmts and i < self.ntop_pmts:
-                s2apc.clean.append(s2_t)
-        s2acp_clean.np.assaray(s2acp_clean)
-        s2acp_clean /= s2acp_clean.sum()
-        predicted_xy_tensorflow = self.nn_tensorflow.predict(s2acp_clean)
+                s2apc_clean.append(s2_t)
+        s2apc_clean = np.assaray(s2apc_clean)
+        s2apc_clean /= s2apc_clean.sum()
+        predicted_xy_tensorflow = self.nn_tensorflow.predict(s2apc_clean)
         event_data['x_observed_tf'] = predicted_xy_tensorflow[0]
         event_data['y_observed_tf'] = predicted_xy_tensorflow[1]
 
