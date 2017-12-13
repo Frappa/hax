@@ -8,7 +8,7 @@ from pax import utils
 from pax import exceptions
 from scipy.stats import binom_test
 from keras.models import model_from_json
-
+import tensorflow as tf
 
 class PositionReconstruction(TreeMaker):
     """Stores position-reconstruction-related variables.
@@ -68,6 +68,7 @@ class PositionReconstruction(TreeMaker):
         self.nn_tensorflow = loaded_nn_model
         self.list_bad_pmts = [1, 2, 12, 26, 34, 62, 65, 79, 86, 88, 102, 118, 130, 134, 135, 139, 148, 150, 152, 162, 178, 183, 190, 198, 206, 213, 214, 234, 239, 244, 27, 73, 91, 137, 167, 203]
         self.ntop_pmts = 127  # How to get this automatically?
+        tf.keras.backend.clear_session()
 
     def get_data(self, dataset, event_list=None):
 
@@ -103,6 +104,8 @@ class PositionReconstruction(TreeMaker):
 
         # Position reconstruction based on NN from TensorFlow
         s2apc = np.array(list(s2.area_per_channel))
+        if(len(s2apc)!=self.ntop_pmts):
+            return event_data
         s2apc_clean = []
         for i, s2_t in enumerate(s2apc):
             if i not in self.list_bad_pmts and i < self.ntop_pmts:
